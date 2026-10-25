@@ -1,0 +1,2099 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arca Estúdio 3D</title>
+  <!-- Chart.js para os gráficos da aba Relatórios -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF para exportação do relatório de produtos em PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8f6f0;
+      --card: rgba(255, 255, 255, 0.92);
+      --text: #172033;
+      --muted: #667085;
+      --line: #e5e9f0;
+      --primary: #d96248;
+      --primary-dark: #b84a32;
+      --green: #16825d;
+      --red: #c03939;
+      --amber: #946200;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      position: relative;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: url('arca 3d.jpeg') no-repeat center center fixed;
+      background-size: cover;
+      opacity: 0.12;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* TELA DE LOGIN */
+    #login-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(23, 27, 46, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+    .login-card {
+      background: white;
+      padding: 32px;
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .login-card img {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--primary);
+      margin-bottom: 16px;
+    }
+    .login-card h2 { margin-bottom: 6px; }
+    .login-card p { margin-bottom: 20px; font-size: 14px; color: var(--muted); }
+    .login-error {
+      color: var(--red);
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    header {
+      background: #171b2e;
+      color: white;
+      padding: 20px max(20px, calc((100% - 1160px) / 2));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header img.logo {
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--primary);
+    }
+    header h1 { margin: 0; font-size: 22px; font-weight: 700; color: #ffffff; }
+    header p { margin: 2px 0 0; color: #c8cce0; font-size: 14px; }
+
+    main { max-width: 1160px; margin: 24px auto; padding: 0 18px 40px; }
+    
+    nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    button, input, select, textarea { font: inherit; }
+    button {
+      border: 0;
+      border-radius: 9px;
+      cursor: pointer;
+      padding: 10px 15px;
+      background: var(--primary);
+      color: white;
+      font-weight: 650;
+      transition: background 0.15s ease;
+    }
+    button:hover { background: var(--primary-dark); }
+    button.secondary { background: #fbeee8; color: var(--primary-dark); }
+    button.secondary:hover { background: #f7ded3; }
+    button.danger { background: #fff0f0; color: var(--red); }
+    button.danger:hover { background: #ffe1e1; }
+    button:disabled, input:disabled, select:disabled, textarea:disabled {
+      background: #eef1f6 !important;
+      color: #98a2b3 !important;
+      cursor: not-allowed;
+      border-color: #d7dce5 !important;
+    }
+    button.nav {
+      background: var(--card);
+      color: var(--muted);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(4px);
+    }
+    button.nav.active { background: var(--primary); border-color: var(--primary); color: white; }
+    
+    /* Sub-abas dentro das seções */
+    .sub-nav { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 2px solid var(--line); padding-bottom: 8px; }
+    .sub-nav button { background: transparent; color: var(--muted); font-size: 14px; padding: 6px 14px; border-radius: 6px; }
+    .sub-nav button.active { background: #fbeee8; color: var(--primary-dark); font-weight: 700; }
+    .sub-view { display: none; }
+    .sub-view.active { display: block; }
+
+    .panel, .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+      margin-bottom: 16px;
+      backdrop-filter: blur(8px);
+    }
+    .view { display: none; }
+    .view.active { display: block; }
+    h2 { margin: 0 0 16px; font-size: 20px; color: var(--text); }
+    h3 { margin: 0 0 10px; font-size: 16px; color: var(--text); }
+    .muted { color: var(--muted); }
+    
+    .grid { display: grid; gap: 16px; }
+    .stats { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 16px; }
+    .two { grid-template-columns: 1fr 1fr; }
+    .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    .stat-label { color: var(--muted); font-size: 13px; font-weight: 500; }
+    .stat-value { font-size: 24px; font-weight: 750; margin-top: 5px; color: var(--text); }
+    
+    form .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    label { display: block; font-size: 13px; color: var(--muted); font-weight: 600; text-align: left; }
+    input, select, textarea {
+      display: block;
+      width: 100%;
+      margin-top: 5px;
+      padding: 10px 11px;
+      border: 1px solid #d7dce5;
+      border-radius: 8px;
+      color: var(--text);
+      background: white;
+    }
+    input:focus, select:focus, textarea:focus { outline: 2px solid #f7ded3; border-color: var(--primary); }
+    .form-actions { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+    
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 14px; }
+    th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: rgba(250, 250, 252, 0.8); }
+    
+    .badge { display: inline-block; border-radius: 999px; padding: 3px 8px; font-size: 12px; font-weight: 700; }
+    .badge.ok { background: #e7f6ef; color: var(--green); }
+    .badge.low { background: #fff3d6; color: var(--amber); }
+    .badge.type { background: #eef2ff; color: #4338ca; }
+    
+    .result { margin-top: 18px; display: none; }
+    .result.show { display: block; }
+    .price { font-size: 32px; color: var(--primary-dark); font-weight: 800; margin: 8px 0; }
+    .breakdown { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; max-width: 480px; margin-top: 12px; }
+    .notice { padding: 12px 14px; border-radius: 9px; background: #fbeee8; color: var(--primary-dark); margin-bottom: 16px; font-size: 14px; text-align: left; }
+    .empty { color: var(--muted); padding: 20px 0; text-align: center; }
+
+    /* Estilos para Imagens */
+    .img-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 8px; }
+    .img-box {
+      border: 2px dashed #d7dce5;
+      border-radius: 8px;
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      background: #fafbfc;
+      overflow: hidden;
+      text-align: center;
+      padding: 4px;
+    }
+    .img-box:hover { border-color: var(--primary); background: #fff8f5; }
+    .img-box.disabled {
+      background: #eef1f6 !important;
+      border-color: #d7dce5 !important;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .img-box.disabled span {
+      color: #98a2b3 !important;
+    }
+    .img-box img { width: 100%; height: 100%; object-fit: cover; }
+    .img-box span { font-size: 11px; color: var(--muted); }
+    .img-box .btn-remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(192, 57, 57, 0.85);
+      color: white;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      padding: 0;
+    }
+    .thumb { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: #eee; vertical-align: middle; cursor: pointer; }
+
+    /* Cards do Catálogo */
+    .catalog-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .catalog-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+    .catalog-img-wrap {
+      width: 100%;
+      height: 180px;
+      background: #f0f2f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .catalog-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      cursor: pointer;
+    }
+    .catalog-no-img {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .catalog-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      justify-content: space-between;
+      text-align: left;
+    }
+    .catalog-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .catalog-price {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--primary-dark);
+      margin-top: 10px;
+    }
+
+    /* Modal */
+    .modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      align-items: center; justify-content: center; z-index: 999; padding: 20px;
+    }
+    .modal.active { display: flex; }
+    .modal-content { background: white; border-radius: 12px; max-width: 500px; width: 100%; padding: 24px; text-align: center; }
+    .modal-content img { max-width: 100%; max-height: 70vh; border-radius: 8px; }
+    .modal-options { display: flex; gap: 16px; margin-top: 20px; justify-content: center; }
+    .modal-options button { flex: 1; padding: 14px; font-size: 15px; }
+
+    .section-title {
+      grid-column: 1 / -1;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-top: 10px;
+      margin-bottom: -4px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 4px;
+      text-align: left;
+    }
+
+    footer { max-width: 1160px; margin: -10px auto 24px; padding: 0 18px; color: var(--muted); font-size: 12px; text-align: center; }
+    
+    @media (max-width: 768px) {
+      .two { grid-template-columns: 1fr; }
+      form .fields { grid-template-columns: 1fr; }
+      .img-picker { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TELA DE LOGIN OBRIGATÓRIA -->
+  <div id="login-overlay">
+    <div class="login-card">
+      <img src="arca 3d.jpeg" alt="Arca Estúdio 3D Logo">
+      <h2>Arca Estúdio 3D</h2>
+      <p>Insira suas credenciais para acessar o sistema</p>
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div style="margin-bottom: 12px; text-align: left;">
+          <label>Usuário</label>
+          <input type="text" id="login-user" required autocomplete="off" placeholder="Digite seu usuário" style="text-transform: uppercase;">
+        </div>
+        <div style="margin-bottom: 16px; text-align: left;">
+          <label>Senha</label>
+          <input type="password" id="login-pass" required autocomplete="new-password" placeholder="Digite sua senha">
+        </div>
+        <button type="submit" style="width: 100%; padding: 12px;">Entrar</button>
+        <div id="login-error" class="login-error">Usuário ou senha inválidos.</div>
+      </form>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-left">
+      <img src="arca 3d.jpeg" alt="Arca Estúdio 3D Logo" class="logo">
+      <div>
+        <h1>Arca Estúdio 3D</h1>
+        <p>Gestão completa: Custos, Orçamentos, Clientes e Estoque para Impressão 3D</p>
+      </div>
+    </div>
+    <div>
+      <button class="secondary" onclick="logout()" style="padding: 6px 12px; font-size: 13px;">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <nav>
+      <button class="nav active" data-view="inicio">Visão geral</button>
+      <button class="nav" data-view="calculadora">Calculadora</button>
+      <button class="nav" data-view="produtos">Produtos</button>
+      <button class="nav" data-view="catalogo">Catálogo</button>
+      <button class="nav" data-view="vendas">Vendas</button>
+      <button class="nav" data-view="clientes">Clientes</button>
+      <button class="nav" data-view="insumos">Insumos</button>
+      <button class="nav" data-view="relatorios">Relatórios</button>
+      <button class="nav" data-view="historico">Histórico</button>
+      <button class="nav" data-view="configuracoes">Configurações</button>
+    </nav>
+
+    <!-- VISÃO GERAL -->
+    <section id="inicio" class="view active">
+      <div class="grid stats">
+        <div class="card"><div class="stat-label">Insumos Cadastrados</div><div id="stat-materials" class="stat-value">0</div></div>
+        <div class="card"><div class="stat-label">Catálogo de Produtos</div><div id="stat-products" class="stat-value">0</div></div>
+        <div class="card"><div class="stat-label">Clientes Cadastrados</div><div id="stat-customers" class="stat-value">0</div></div>
+        <div class="card"><div class="stat-label">Vendas Realizadas</div><div id="stat-sales" class="stat-value">0</div></div>
+        <div class="card"><div class="stat-label">Faturamento Total</div><div id="stat-revenue" class="stat-value">R$ 0,00</div></div>
+      </div>
+      <div class="panel">
+        <h2>Painel de Controle</h2>
+        <p class="muted">Gerencie seus orçamentos, produtos e estoque de forma automatizada.</p>
+        <div class="notice">Fórmula de Margem configurada: <b>Preço de Venda = Custo Total / (1 - Margem%)</b>. O estoque de insumo só é descontado no registro efetivo de Vendas informando o código do rolo.</div>
+        <div class="form-actions">
+          <button onclick="showView('vendas')">Nova Venda</button>
+          <button class="secondary" onclick="showView('calculadora')">Calculadora de Preço</button>
+          <button class="secondary" onclick="showView('produtos')">Cadastrar Produto</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSUMOS -->
+    <section id="insumos" class="view">
+      <div class="panel">
+        <h2>Insumos (Estoque)</h2>
+        <div class="form-actions" style="margin-top:0; margin-bottom: 16px;">
+          <button type="button" onclick="enableMaterialForm()">Novo Insumo</button>
+        </div>
+        <form id="material-form">
+          <div class="fields">
+            <label>Código do Insumo
+              <input name="code" id="mat-code" required disabled placeholder="Clique em 'Novo Insumo'">
+            </label>
+            <label>Nome / Tipo do Insumo
+              <input name="name" id="mat-name" required disabled placeholder="Ex.: PLA Preto Premium">
+            </label>
+            <label>Preço do Rolo / Embalagem (R$)
+              <input name="price" id="mat-price" type="number" min="0" step="0.01" required disabled placeholder="90,00">
+            </label>
+            <label>Peso / Quantidade Total (g)
+              <input name="spool" id="mat-spool" type="number" min="1" step="1" value="1000" required disabled>
+            </label>
+            <label>Estoque Atual (g)
+              <input name="stock" id="mat-stock" type="number" min="0" step="1" value="1000" required disabled>
+            </label>
+            <label>Estoque Mínimo (Alerta)
+              <input name="minStock" id="mat-minStock" type="number" min="0" step="1" value="200" required disabled>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" id="btn-save-mat" disabled>Adicionar Insumo</button>
+            <button type="button" class="danger" id="btn-cancel-mat" onclick="cancelMaterialForm()" disabled>Cancelar</button>
+          </div>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Código</th><th>Insumo</th><th>Preço/kg</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="materials-table"></tbody>
+          </table>
+        </div>
+        <div id="materials-empty" class="empty">Nenhum insumo cadastrado.</div>
+      </div>
+    </section>
+
+    <!-- PRODUTOS -->
+    <section id="produtos" class="view">
+      <div class="panel">
+        <h2>Cadastro de Produtos (Ficha Técnica)</h2>
+        <div class="form-actions" style="margin-top:0; margin-bottom: 16px;">
+          <button type="button" onclick="enableProductForm()">Novo Produto</button>
+        </div>
+        <form id="product-form">
+          <input type="hidden" name="id" id="prod-id">
+          <div class="fields">
+            <label>Código do Produto
+              <input name="code" id="prod-code" required disabled placeholder="Clique em 'Novo Produto'">
+            </label>
+            <label>Nome do Produto
+              <input name="name" id="prod-name" required disabled placeholder="Ex.: Suporte de Headset Dual">
+            </label>
+            <label>Insumo Padrão
+              <select name="materialId" id="prod-material" required disabled></select>
+            </label>
+            <label>Consumo de Insumo (g)
+              <input name="grams" id="prod-grams" type="number" min="0.1" step="0.1" required disabled placeholder="120">
+            </label>
+            <label>Tempo de Impressão (Horas)
+              <input name="hours" id="prod-hours" type="number" min="0" step="0.1" value="2" required disabled>
+            </label>
+            <label>Custos Extras (R$)
+              <input name="extras" id="prod-extras" type="number" min="0" step="0.01" value="0" disabled placeholder="Parafusos, embalagem etc.">
+            </label>
+            <label>Margem de Lucro (%)
+              <input name="margin" id="prod-margin" type="number" min="0" max="99.9" step="0.1" value="50" required disabled>
+            </label>
+          </div>
+
+          <div style="margin-top:14px; text-align: left;">
+            <label>Imagens do Produto (Até 4 fotos):</label>
+            <div class="img-picker">
+              <div class="img-box disabled" onclick="triggerImgUpload(0)" id="img-box-0"><span>+ Foto 1 (Capa)</span></div>
+              <div class="img-box disabled" onclick="triggerImgUpload(1)" id="img-box-1"><span>+ Foto 2</span></div>
+              <div class="img-box disabled" onclick="triggerImgUpload(2)" id="img-box-2"><span>+ Foto 3</span></div>
+              <div class="img-box disabled" onclick="triggerImgUpload(3)" id="img-box-3"><span>+ Foto 4</span></div>
+            </div>
+            <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="handleFileSelect(event)">
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" id="btn-save-prod" disabled>Salvar Produto</button>
+            <button type="button" class="danger" id="btn-cancel-prod" onclick="resetProductForm()" disabled>Cancelar</button>
+          </div>
+        </form>
+
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+            <h3 style="margin: 0;">Lista de Produtos Cadastrados</h3>
+            <div style="max-width: 320px; width: 100%;">
+              <input type="search" id="product-search" placeholder="Buscar por código, nome ou insumo..." oninput="filterProductsTable()" style="margin: 0;">
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Fotos</th><th>Código</th><th>Produto</th><th>Insumo</th><th>Peso</th><th>Tempo</th><th>Custo Base</th><th>Preço Sugerido</th><th>Ações</th></tr></thead>
+              <tbody id="products-table"></tbody>
+            </table>
+          </div>
+          <div id="products-empty" class="empty">Nenhum produto cadastrado no catálogo.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CATÁLOGO -->
+    <section id="catalogo" class="view">
+      <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <h2>Catálogo de Produtos</h2>
+            <p class="muted" style="margin: 0;">Visualização rápida dos produtos cadastrados com foto de capa e valor de venda.</p>
+          </div>
+          <button type="button" onclick="generateProductsReport()">Gerar Arquivo</button>
+        </div>
+        <div id="catalog-container" class="grid catalog-grid" style="margin-top: 16px;"></div>
+        <div id="catalog-empty" class="empty">Nenhum produto no catálogo.</div>
+      </div>
+    </section>
+
+    <!-- CALCULADORA -->
+    <section id="calculadora" class="view">
+      <div class="panel">
+        <h2>Calculadora de Preço Instantânea</h2>
+        
+        <div class="sub-nav">
+          <button type="button" class="active" onclick="switchCalcTab('com-cadastro')">Com Cadastro</button>
+          <button type="button" onclick="switchCalcTab('sem-cadastro')">Sem Cadastro (Livre)</button>
+        </div>
+
+        <!-- SUB-ABA COM CADASTRO -->
+        <div id="calc-com-cadastro" class="sub-view active">
+          <form id="calc-form-registered">
+            <div class="fields">
+              <label>Nome do Trabalho / Projeto
+                <input name="jobName" id="calc-jobName" placeholder="Ex.: Peça sob encomenda">
+              </label>
+              <label>Carregar de Produto Salvo
+                <select id="calc-product-select" onchange="loadProductIntoCalc()"><option value="">Selecione para carregar dados...</option></select>
+              </label>
+              <label>Insumo Utilizado
+                <select name="materialId" id="calc-material" required></select>
+              </label>
+              <label>Peso Utilizado (g)
+                <input name="grams" id="calc-grams" type="number" min="0.1" step="0.1" required placeholder="80">
+              </label>
+              <label>Tempo de Impressão (Horas)
+                <input name="hours" id="calc-hours" type="number" min="0" step="0.1" value="1" required>
+              </label>
+              <label>Custos Extras (R$)
+                <input name="extras" id="calc-extras" type="number" min="0" step="0.01" value="0">
+              </label>
+              <label>Margem de Lucro (%)
+                <input name="margin" id="calc-margin" type="number" min="0" max="99.9" step="0.1" value="50" required>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit">Calcular Preço</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- SUB-ABA SEM CADASTRO -->
+        <div id="calc-sem-cadastro" class="sub-view">
+          <form id="calc-form-unregistered">
+            <div class="fields">
+              <label>Nome do Trabalho / Projeto
+                <input name="jobName" placeholder="Ex.: Protótipo Avulso">
+              </label>
+              <label>Nome do Filamento / Insumo
+                <input name="materialName" placeholder="Ex.: PLA Vermelho Genérico">
+              </label>
+              <label>Preço do Rolo (R$)
+                <input name="spoolPrice" type="number" min="0" step="0.01" value="90" required placeholder="90,00">
+              </label>
+              <label>Peso do Rolo (g)
+                <input name="spoolWeight" type="number" min="1" step="1" value="1000" required placeholder="1000">
+              </label>
+              <label>Peso Consumido na Peça (g)
+                <input name="grams" type="number" min="0.1" step="0.1" required placeholder="80">
+              </label>
+              <label>Tempo de Impressão (Horas)
+                <input name="hours" type="number" min="0" step="0.1" value="1" required>
+              </label>
+              <label>Custos Extras (R$)
+                <input name="extras" type="number" min="0" step="0.01" value="0">
+              </label>
+              <label>Margem de Lucro (%)
+                <input name="margin" type="number" min="0" max="99.9" step="0.1" value="50" required>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit">Calcular Preço Avulso</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- RESULTADO DA CALCULADORA -->
+        <div id="calc-result" class="result card" style="text-align: left;"></div>
+      </div>
+    </section>
+
+    <!-- VENDAS -->
+    <section id="vendas" class="view">
+      <div class="panel">
+        <h2>Registrar Nova Venda</h2>
+        <div class="form-actions" style="margin-top:0; margin-bottom: 16px;">
+          <button type="button" id="btn-new-sale-trigger" onclick="enableSaleForm()">Nova Venda</button>
+        </div>
+        <p class="muted">Informe o código do filamento utilizado para que o total gasto seja subtraído do rolo correto.</p>
+        <form id="sale-form">
+          <div class="fields">
+            <label>Código da Venda
+              <input name="code" id="sale-code" required disabled placeholder="Clique em 'Nova Venda'">
+            </label>
+            <label>Cliente
+              <select name="customerId" id="sale-customer" disabled><option value="">Cliente Não Identificado / Balcão</option></select>
+            </label>
+            <label>Carregar do Catálogo de Produtos
+              <select id="sale-product-select" onchange="loadProductIntoSale()" disabled><option value="">Selecione um produto...</option></select>
+            </label>
+            <label>Descrição do Item Vendido
+              <input name="name" id="sale-name" required disabled placeholder="Ex.: Action Figure 15cm">
+            </label>
+            <label>Código do Filamento Utilizado
+              <select name="materialId" id="sale-material" required disabled></select>
+            </label>
+            <label>Quantidade Consumida (g)
+              <input name="grams" id="sale-grams" type="number" min="0.1" step="0.1" required disabled placeholder="100">
+            </label>
+            <label>Tempo de Impressão (Horas)
+              <input name="hours" id="sale-hours" type="number" min="0" step="0.1" value="1" required disabled>
+            </label>
+            <label>Custos Extras (R$)
+              <input name="extras" id="sale-extras" type="number" min="0" step="0.01" value="0" disabled>
+            </label>
+            <label>Margem de Lucro (%)
+              <input name="margin" id="sale-margin" type="number" min="0" max="99.9" step="0.1" value="50" required disabled>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" id="btn-save-sale" disabled>Confirmar Venda e Baixar Estoque</button>
+            <button type="button" class="danger" id="btn-cancel-sale" onclick="cancelSaleForm()" disabled>Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- CLIENTES -->
+    <section id="clientes" class="view">
+      <div class="panel">
+        <h2>Cadastro de Clientes</h2>
+        <div class="form-actions" style="margin-top:0; margin-bottom: 16px;">
+          <button type="button" id="btn-new-cust-trigger" onclick="openCustomerTypeModal()">Novo Cliente</button>
+        </div>
+
+        <form id="customer-form">
+          <input type="hidden" name="type" id="cust-type">
+          <div class="fields">
+            <label>Código do Cliente
+              <input name="code" id="cust-code" required disabled placeholder="Clique em 'Novo Cliente'">
+            </label>
+
+            <!-- CAMPOS PARA CPF (Pessoa Física) -->
+            <div id="fields-cpf" style="display:none; grid-column: 1 / -1;" class="fields">
+              <div class="section-title">Dados Pessoais</div>
+              <label style="grid-column: 1 / -1;">Nome do Cliente *
+                <input name="name" id="cust-name" disabled placeholder="Ex.: João Silva">
+              </label>
+              <label>CPF
+                <input name="cpf" id="cust-cpf" maxlength="14" disabled placeholder="000.000.000-00" oninput="maskCPF(this)">
+              </label>
+              <label>Telefone / WhatsApp
+                <input name="phoneCpf" id="cust-phone-cpf" maxlength="15" disabled placeholder="(11) 99999-9999" oninput="maskPhone(this)">
+              </label>
+
+              <div class="section-title">Endereço</div>
+              <label>CEP
+                <input name="cepCpf" id="cust-cep-cpf" maxlength="9" disabled placeholder="00000-000" oninput="maskCEP(this)">
+              </label>
+              <label style="grid-column: span 2;">Rua / Logradouro
+                <input name="streetCpf" id="cust-street-cpf" disabled placeholder="Rua das Flores">
+              </label>
+              <label>Número
+                <input name="numberCpf" id="cust-number-cpf" disabled placeholder="123">
+              </label>
+              <label>Complemento
+                <input name="complementCpf" id="cust-complement-cpf" disabled placeholder="Apt 101 / Bloco B">
+              </label>
+              <label>Bairro
+                <input name="neighborhoodCpf" id="cust-neighborhood-cpf" disabled placeholder="Centro">
+              </label>
+              <label>Cidade
+                <input name="cityCpf" id="cust-city-cpf" disabled placeholder="São Paulo">
+              </label>
+              <label>Estado (UF)
+                <input name="stateCpf" id="cust-state-cpf" maxlength="2" disabled placeholder="SP">
+              </label>
+            </div>
+
+            <!-- CAMPOS PARA CNPJ (Pessoa Jurídica) -->
+            <div id="fields-cnpj" style="display:none; grid-column: 1 / -1;" class="fields">
+              <div class="section-title">Dados Empresariais</div>
+              <label style="grid-column: 1 / -1;">Razão Social *
+                <input name="companyName" id="cust-companyName" disabled placeholder="Ex.: Minha Empresa LTDA">
+              </label>
+              <label>Nome Fantasia
+                <input name="tradeName" id="cust-tradeName" disabled placeholder="Ex.: Arca 3D">
+              </label>
+              <label>CNPJ
+                <input name="cnpj" id="cust-cnpj" maxlength="18" disabled placeholder="00.000.000/0001-00" oninput="maskCNPJ(this)">
+              </label>
+              <label>Inscrição Estadual (IE)
+                <input name="ie" id="cust-ie" disabled placeholder="Isento ou nº da IE">
+              </label>
+              <label>Nome do Contato
+                <input name="contactName" id="cust-contactName" disabled placeholder="Ex.: Carlos Souza">
+              </label>
+              <label>Telefone / WhatsApp
+                <input name="phoneCnpj" id="cust-phone-cnpj" maxlength="15" disabled placeholder="(11) 99999-9999" oninput="maskPhone(this)">
+              </label>
+
+              <div class="section-title">Endereço da Empresa</div>
+              <label>CEP
+                <input name="cepCnpj" id="cust-cep-cnpj" maxlength="9" disabled placeholder="00000-000" oninput="maskCEP(this)">
+              </label>
+              <label style="grid-column: span 2;">Rua / Logradouro
+                <input name="streetCnpj" id="cust-street-cnpj" disabled placeholder="Av. Paulista">
+              </label>
+              <label>Número
+                <input name="numberCnpj" id="cust-number-cnpj" disabled placeholder="1000">
+              </label>
+              <label>Complemento
+                <input name="complementCnpj" id="cust-complement-cnpj" disabled placeholder="Sala 502">
+              </label>
+              <label>Bairro
+                <input name="neighborhoodCnpj" id="cust-neighborhood-cnpj" disabled placeholder="Bela Vista">
+              </label>
+              <label>Cidade
+                <input name="cityCnpj" id="cust-city-cnpj" disabled placeholder="São Paulo">
+              </label>
+              <label>Estado (UF)
+                <input name="stateCnpj" id="cust-state-cnpj" maxlength="2" disabled placeholder="SP">
+              </label>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" id="btn-save-cust" disabled>Salvar Cliente</button>
+            <button type="button" class="danger" id="btn-cancel-cust" onclick="cancelCustomerForm()" disabled>Cancelar</button>
+          </div>
+        </form>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Código</th><th>Tipo</th><th>Razão Social / Nome</th><th>CNPJ / CPF</th><th>Contato / WhatsApp</th><th>Endereço Completo</th><th>Total Pedidos</th><th>Ações</th></tr></thead>
+            <tbody id="customers-table"></tbody>
+          </table>
+        </div>
+        <div id="customers-empty" class="empty">Nenhum cliente cadastrado.</div>
+      </div>
+    </section>
+
+    <!-- RELATÓRIOS OTIMIZADOS -->
+    <section id="relatorios" class="view">
+      <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+          <div>
+            <h2>Relatórios Executivos & Financeiros</h2>
+            <p class="muted" style="margin: 0;">Análise automatizada de faturamento, margem de lucro e insumos.</p>
+          </div>
+          <div>
+            <select id="report-period" onchange="renderCharts()" style="margin: 0; padding: 8px 12px; border-radius: 8px; font-weight: 600;">
+              <option value="all">Todo o Período</option>
+              <option value="this_month">Este Mês</option>
+              <option value="last_month">Mês Anterior</option>
+              <option value="7days">Últimos 7 dias</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- METRICAS FINANCEIRAS -->
+        <div class="grid stats" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <div class="card">
+            <div class="stat-label">Faturamento Total</div>
+            <div id="rep-revenue" class="stat-value" style="color: var(--green);">R$ 0,00</div>
+          </div>
+          <div class="card">
+            <div class="stat-label">Lucro Estimado</div>
+            <div id="rep-profit" class="stat-value" style="color: var(--primary-dark);">R$ 0,00</div>
+          </div>
+          <div class="card">
+            <div class="stat-label">Peças Vendidas</div>
+            <div id="rep-items" class="stat-value">0</div>
+          </div>
+          <div class="card">
+            <div class="stat-label">Insumo Consumido</div>
+            <div id="rep-filament" class="stat-value">0 g</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
+          <h3>Evolução de Vendas no Tempo (Faturamento R$)</h3>
+          <div style="height: 240px; position: relative;">
+            <canvas id="chart-timeline"></canvas>
+          </div>
+        </div>
+
+        <div class="grid two" style="margin-top: 16px;">
+          <div class="card">
+            <h3>Distribuição de Custos das Vendas</h3>
+            <div style="height: 220px; position: relative;">
+              <canvas id="chart-costs"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Nível Atual do Estoque de Insumos (g)</h3>
+            <div style="height: 220px; position: relative;">
+              <canvas id="chart-stock"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTÓRICO -->
+    <section id="historico" class="view">
+      <div class="panel">
+        <h2>Histórico de Orçamentos e Vendas</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Código</th><th>Data</th><th>Tipo</th><th>Item / Produto</th><th>Cliente</th><th>Insumo</th><th>Gramas</th><th>Custo</th><th>Preço Final</th></tr></thead>
+            <tbody id="history-table"></tbody>
+          </table>
+        </div>
+        <div id="history-empty" class="empty">Nenhum histórico registrado.</div>
+      </div>
+    </section>
+
+    <!-- CONFIGURAÇÕES -->
+    <section id="configuracoes" class="view">
+      <div class="panel">
+        <h2>Configurações de Custo de Mão de Obra e Energia</h2>
+        <form id="settings-form">
+          <div class="fields">
+            <label>Potência Média da Impressora (Watts)
+              <input name="watts" type="number" min="0" step="1" required>
+            </label>
+            <label>Tarifa de Energia (R$ / kWh)
+              <input name="tariff" type="number" min="0" step="0.001" required>
+            </label>
+            <label>Custo de Módulo de Máquina por Hora (R$)
+              <input name="machineRate" type="number" min="0" step="0.01" required>
+            </label>
+          </div>
+          <div class="form-actions"><button type="submit">Salvar Configurações</button></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal Tipo de Cliente (CPF ou CNPJ) -->
+  <div class="modal" id="modal-cust-type">
+    <div class="modal-content">
+      <h3>Selecione o Tipo de Cliente</h3>
+      <p class="muted">Deseja cadastrar uma Pessoa Física (CPF) ou Jurídica (CNPJ)?</p>
+      <div class="modal-options">
+        <button type="button" onclick="selectCustomerType('CPF')">Pessoa Física (CPF)</button>
+        <button type="button" class="secondary" onclick="selectCustomerType('CNPJ')">Pessoa Jurídica (CNPJ)</button>
+      </div>
+      <div style="margin-top: 16px;">
+        <button type="button" class="danger" onclick="closeCustomerTypeModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para visualização ampliada de fotos -->
+  <div class="modal" id="img-modal" onclick="closeImgModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <img id="modal-img-src" src="" alt="Ampliada">
+      <div style="margin-top:12px;">
+        <button class="secondary" onclick="closeImgModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>Arca Estúdio 3D — Sistema completo para precificação e gestão de impressão 3D.</footer>
+
+  <script>
+    // BASE DE DADOS DE USUÁRIOS PRÉ-CADASTRADOS
+    const PRE_USERS = {
+      "NSEIXAS": "112510",
+      "MDIAS": "008100"
+    };
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const user = document.getElementById("login-user").value.trim().toUpperCase();
+      const pass = document.getElementById("login-pass").value.trim();
+      const errBox = document.getElementById("login-error");
+
+      if (PRE_USERS[user] && PRE_USERS[user] === pass) {
+        document.getElementById("login-overlay").style.display = "none";
+        sessionStorage.setItem("arca_logged", "true");
+        sessionStorage.setItem("arca_user", user);
+        renderAll();
+      } else {
+        errBox.style.display = "block";
+      }
+    }
+
+    function logout() {
+      sessionStorage.removeItem("arca_logged");
+      sessionStorage.removeItem("arca_user");
+      document.getElementById("login-user").value = "";
+      document.getElementById("login-pass").value = "";
+      document.getElementById("login-error").style.display = "none";
+      document.getElementById("login-overlay").style.display = "flex";
+    }
+
+    // Verificar se já está logado na sessão atual
+    window.addEventListener("DOMContentLoaded", () => {
+      if (sessionStorage.getItem("arca_logged") === "true") {
+        document.getElementById("login-overlay").style.display = "none";
+        renderAll();
+      }
+    });
+
+    const KEY = "arca_estudio_3d_store";
+    const defaults = {
+      materials: [],
+      products: [],
+      customers: [],
+      records: [],
+      settings: { watts: 200, tariff: 0.90, machineRate: 2.00 }
+    };
+
+    let tempImages = ["", "", "", ""];
+    let currentUploadSlot = 0;
+
+    function loadData() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(KEY));
+        if (!saved) return structuredClone(defaults);
+        return {
+          ...structuredClone(defaults),
+          ...saved,
+          settings: { ...defaults.settings, ...(saved.settings || {}) }
+        };
+      } catch {
+        return structuredClone(defaults);
+      }
+    }
+    let data = loadData();
+
+    function persist() {
+      localStorage.setItem(KEY, JSON.stringify(data));
+      renderAll();
+    }
+
+    function money(val) {
+      return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(val) || 0);
+    }
+    function num(val) { return Number(val) || 0; }
+    function escapeHtml(str) {
+      return String(str ?? "").replace(/[&<>"']/g, ch => ({
+        "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+      }[ch]));
+    }
+
+    /* MÁSCARAS DE ENTRADA */
+    function maskCPF(i) {
+      let v = i.value.replace(/\D/g, "");
+      if (v.length > 11) v = v.substring(0, 11);
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+      i.value = v;
+    }
+
+    function maskCNPJ(i) {
+      let v = i.value.replace(/\D/g, "");
+      if (v.length > 14) v = v.substring(0, 14);
+      v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+      v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+      v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+      v = v.replace(/(\d{4})(\d)/, "$1-$2");
+      i.value = v;
+    }
+
+    function maskPhone(i) {
+      let v = i.value.replace(/\D/g, "");
+      if (v.length > 11) v = v.substring(0, 11);
+      v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
+      v = v.replace(/(\d)(\d{4})$/, "$1-$2");
+      i.value = v;
+    }
+
+    function maskCEP(i) {
+      let v = i.value.replace(/\D/g, "");
+      if (v.length > 8) v = v.substring(0, 8);
+      v = v.replace(/^(\d{5})(\d)/, "$1-$2");
+      i.value = v;
+    }
+
+    /* VALIDAÇÕES ALGORÍTMICAS DE CPF E CNPJ */
+    function validateCPF(cpf) {
+      cpf = cpf.replace(/[^\d]+/g, '');
+      if (cpf === '') return true;
+      if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+      let add = 0;
+      for (let i = 0; i < 9; i++) add += parseInt(cpf.charAt(i)) * (10 - i);
+      let rev = 11 - (add % 11);
+      if (rev === 10 || rev === 11) rev = 0;
+      if (rev !== parseInt(cpf.charAt(9))) return false;
+      add = 0;
+      for (let i = 0; i < 10; i++) add += parseInt(cpf.charAt(i)) * (11 - i);
+      rev = 11 - (add % 11);
+      if (rev === 10 || rev === 11) rev = 0;
+      if (rev !== parseInt(cpf.charAt(10))) return false;
+      return true;
+    }
+
+    function validateCNPJ(cnpj) {
+      cnpj = cnpj.replace(/[^\d]+/g, '');
+      if (cnpj === '') return true;
+      if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+      let tamanho = cnpj.length - 2;
+      let numeros = cnpj.substring(0, tamanho);
+      let digitos = cnpj.substring(tamanho);
+      let soma = 0;
+      let pos = tamanho - 7;
+      for (let i = tamanho; i >= 1; i--) {
+        soma += numeros.charAt(tamanho - i) * pos--;
+        if (pos < 2) pos = 9;
+      }
+      let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+      if (resultado !== parseInt(digitos.charAt(0))) return false;
+      tamanho = tamanho + 1;
+      numeros = cnpj.substring(0, tamanho);
+      soma = 0;
+      pos = tamanho - 7;
+      for (let i = tamanho; i >= 1; i--) {
+        soma += numeros.charAt(tamanho - i) * pos--;
+        if (pos < 2) pos = 9;
+      }
+      resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+      if (resultado !== parseInt(digitos.charAt(1))) return false;
+      return true;
+    }
+
+    function showView(name) {
+      document.querySelectorAll(".view").forEach(el => el.classList.toggle("active", el.id === name));
+      document.querySelectorAll(".nav").forEach(el => el.classList.toggle("active", el.dataset.view === name));
+      if (name === "relatorios") renderCharts();
+    }
+    document.querySelectorAll(".nav").forEach(btn => {
+      btn.addEventListener("click", () => showView(btn.dataset.view));
+    });
+
+    function renderAll() {
+      if (sessionStorage.getItem("arca_logged") !== "true") return;
+      renderMaterials();
+      renderProducts();
+      renderCatalog();
+      renderCustomers();
+      renderSelects();
+      renderHistory();
+      renderSettings();
+      renderStats();
+    }
+
+    function renderStats() {
+      document.getElementById("stat-materials").textContent = data.materials.length;
+      document.getElementById("stat-products").textContent = data.products.length;
+      document.getElementById("stat-customers").textContent = data.customers.length;
+      const sales = data.records.filter(r => r.type === "Venda");
+      document.getElementById("stat-sales").textContent = sales.length;
+      const totalRev = sales.reduce((acc, curr) => acc + num(curr.salePrice), 0);
+      document.getElementById("stat-revenue").textContent = money(totalRev);
+    }
+
+    /* INSUMOS */
+    function renderMaterials() {
+      const tbody = document.getElementById("materials-table");
+      document.getElementById("materials-empty").style.display = data.materials.length ? "none" : "block";
+      tbody.innerHTML = data.materials.map(m => {
+        const low = num(m.stock) <= num(m.minStock);
+        const pricePerKg = (num(m.price) / num(m.spool)) * 1000;
+        return `<tr>
+          <td><span class="badge" style="background:#fbeee8; color:var(--primary-dark);">${escapeHtml(m.code || '-')}</span></td>
+          <td><b>${escapeHtml(m.name)}</b></td>
+          <td>${money(pricePerKg)}</td>
+          <td>${num(m.stock).toFixed(1)} g</td>
+          <td><span class="badge ${low ? "low" : "ok"}">${low ? "Estoque Baixo" : "Em Estoque"}</span></td>
+          <td>
+            <button class="secondary" onclick="adjustStock('${m.id}')">Ajustar</button>
+            <button class="danger" onclick="deleteMaterial('${m.id}')">Excluir</button>
+          </td>
+        </tr>`;
+      }).join("");
+    }
+
+    function enableMaterialForm() {
+      const nextId = data.materials.length + 1;
+      const autoCode = `INS-${String(nextId).padStart(3, '0')}`;
+      
+      document.getElementById("mat-code").value = autoCode;
+      document.getElementById("mat-name").value = "";
+      document.getElementById("mat-price").value = "";
+      document.getElementById("mat-spool").value = "1000";
+      document.getElementById("mat-stock").value = "1000";
+      document.getElementById("mat-minStock").value = "200";
+
+      document.getElementById("mat-code").disabled = false;
+      document.getElementById("mat-name").disabled = false;
+      document.getElementById("mat-price").disabled = false;
+      document.getElementById("mat-spool").disabled = false;
+      document.getElementById("mat-stock").disabled = false;
+      document.getElementById("mat-minStock").disabled = false;
+      document.getElementById("btn-save-mat").disabled = false;
+      document.getElementById("btn-cancel-mat").disabled = false;
+      document.getElementById("mat-name").focus();
+    }
+
+    function cancelMaterialForm() {
+      document.getElementById("material-form").reset();
+      document.getElementById("mat-code").value = "";
+      document.getElementById("mat-code").placeholder = "Clique em 'Novo Insumo'";
+
+      document.getElementById("mat-code").disabled = true;
+      document.getElementById("mat-name").disabled = true;
+      document.getElementById("mat-price").disabled = true;
+      document.getElementById("mat-spool").disabled = true;
+      document.getElementById("mat-stock").disabled = true;
+      document.getElementById("mat-minStock").disabled = true;
+      document.getElementById("btn-save-mat").disabled = true;
+      document.getElementById("btn-cancel-mat").disabled = true;
+    }
+
+    document.getElementById("material-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      data.materials.push({
+        id: crypto.randomUUID(),
+        code: f.get("code").trim(),
+        name: f.get("name").trim(),
+        price: num(f.get("price")),
+        spool: num(f.get("spool")),
+        stock: num(f.get("stock")),
+        minStock: num(f.get("minStock"))
+      });
+      
+      cancelMaterialForm();
+      persist();
+    });
+
+    function adjustStock(id) {
+      const m = data.materials.find(i => i.id === id);
+      if (!m) return;
+      const val = prompt(`Novo estoque para ${m.name} (Código: ${m.code}):`, m.stock);
+      if (val !== null && !isNaN(Number(val)) && Number(val) >= 0) {
+        m.stock = Number(val);
+        persist();
+      }
+    }
+
+    function deleteMaterial(id) {
+      const m = data.materials.find(i => i.id === id);
+      if (m && confirm(`Deseja realmente excluir o insumo "${m.name}"?`)) {
+        data.materials = data.materials.filter(i => i.id !== id);
+        persist();
+      }
+    }
+
+    /* IMAGENS DE PRODUTO */
+    function triggerImgUpload(index) {
+      if (document.getElementById("prod-code").disabled) return;
+      currentUploadSlot = index;
+      document.getElementById("file-input").click();
+    }
+
+    function handleFileSelect(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        tempImages[currentUploadSlot] = e.target.result;
+        updateImgBoxUI(currentUploadSlot);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateImgBoxUI(slot) {
+      const box = document.getElementById(`img-box-${slot}`);
+      const src = tempImages[slot];
+      if (src) {
+        box.innerHTML = `<img src="${src}"><button type="button" class="btn-remove" onclick="removeImg(event, ${slot})">&times;</button>`;
+      } else {
+        box.innerHTML = `<span>+ Foto ${slot + 1} ${slot === 0 ? '(Capa)' : ''}</span>`;
+      }
+    }
+
+    function removeImg(evt, slot) {
+      evt.stopPropagation();
+      tempImages[slot] = "";
+      updateImgBoxUI(slot);
+    }
+
+    function resetImgBoxes() {
+      tempImages = ["", "", "", ""];
+      for (let i = 0; i < 4; i++) updateImgBoxUI(i);
+    }
+
+    /* PRODUTOS E CÁLCULOS */
+    function calculateCostAndPrice(matId, grams, hours, extras, margin) {
+      const mat = data.materials.find(m => m.id === matId);
+      const matPrice = mat ? (num(mat.price) / num(mat.spool)) * grams : 0;
+      const energyCost = (num(data.settings.watts) / 1000) * hours * num(data.settings.tariff);
+      const machineCost = hours * num(data.settings.machineRate);
+      const totalCost = matPrice + energyCost + machineCost + extras;
+      
+      const mPerc = num(margin) / 100;
+      const salePrice = mPerc < 1 ? totalCost / (1 - mPerc) : totalCost * 2;
+      
+      return { matPrice, energyCost, machineCost, totalCost, salePrice, extras };
+    }
+
+    function renderProducts() {
+      filterProductsTable();
+    }
+
+    /* BUSCA OTIMIZADA EM TEMPO REAL */
+    function filterProductsTable() {
+      const query = (document.getElementById("product-search")?.value || "").toLowerCase().trim();
+      const tbody = document.getElementById("products-table");
+      const empty = document.getElementById("products-empty");
+
+      const filtered = data.products.filter(p => {
+        const mat = data.materials.find(m => m.id === p.materialId);
+        const codeMatch = (p.code || "").toLowerCase().includes(query);
+        const nameMatch = (p.name || "").toLowerCase().includes(query);
+        const matMatch = mat ? (mat.name || "").toLowerCase().includes(query) || (mat.code || "").toLowerCase().includes(query) : false;
+        return codeMatch || nameMatch || matMatch;
+      });
+
+      if (!filtered.length) {
+        tbody.innerHTML = "";
+        empty.style.display = "block";
+        return;
+      }
+
+      empty.style.display = "none";
+      tbody.innerHTML = filtered.map(p => {
+        const mat = data.materials.find(m => m.id === p.materialId);
+        const c = calculateCostAndPrice(p.materialId, p.grams, p.hours, p.extras, p.margin);
+        const images = (p.images || []).filter(Boolean);
+        const cover = images[0] || "";
+
+        return `<tr>
+          <td>${cover ? `<img src="${cover}" class="thumb" onclick="openImgModal('${cover}')">` : '<span class="muted">-</span>'}</td>
+          <td><span class="badge" style="background:#fbeee8; color:var(--primary-dark);">${escapeHtml(p.code || '-')}</span></td>
+          <td><b>${escapeHtml(p.name)}</b></td>
+          <td>${mat ? `[${escapeHtml(mat.code)}] ${escapeHtml(mat.name)}` : '-'}</td>
+          <td>${p.grams} g</td>
+          <td>${p.hours} h</td>
+          <td>${money(c.totalCost)}</td>
+          <td><b style="color:var(--primary-dark);">${money(c.salePrice)}</b></td>
+          <td>
+            <button class="secondary" onclick="editProduct('${p.id}')">Editar</button>
+            <button class="danger" onclick="deleteProduct('${p.id}')">Excluir</button>
+          </td>
+        </tr>`;
+      }).join("");
+    }
+
+    /* CATÁLOGO E GERADOR DE ARQUIVO (RELATÓRIO PDF EM NOVA ABA) */
+    function renderCatalog() {
+      const container = document.getElementById("catalog-container");
+      const empty = document.getElementById("catalog-empty");
+      
+      if (!data.products.length) {
+        container.innerHTML = "";
+        empty.style.display = "block";
+        return;
+      }
+      
+      empty.style.display = "none";
+      container.innerHTML = data.products.map(p => {
+        const c = calculateCostAndPrice(p.materialId, p.grams, p.hours, p.extras, p.margin);
+        const images = (p.images || []).filter(Boolean);
+        const firstImg = images[0] || "";
+        const mat = data.materials.find(m => m.id === p.materialId);
+
+        return `
+          <div class="catalog-card">
+            <div class="catalog-img-wrap">
+              ${firstImg 
+                ? `<img src="${firstImg}" alt="${escapeHtml(p.name)}" onclick="openImgModal('${firstImg}')">` 
+                : `<span class="catalog-no-img">Sem foto</span>`}
+            </div>
+            <div class="catalog-body">
+              <div>
+                <span class="badge" style="background:#fbeee8; color:var(--primary-dark); margin-bottom: 6px;">${escapeHtml(p.code || '-')}</span>
+                <div class="catalog-title">${escapeHtml(p.name)}</div>
+                <div class="muted" style="font-size: 13px;">${mat ? escapeHtml(mat.name) : '-'} (${p.grams}g)</div>
+              </div>
+              <div>
+                <div class="catalog-price">${money(c.salePrice)}</div>
+                <button class="secondary" style="width: 100%; margin-top: 10px;" onclick="quickSellFromCatalog('${p.id}')">Registrar Venda</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function quickSellFromCatalog(productId) {
+      showView("vendas");
+      enableSaleForm();
+      document.getElementById("sale-product-select").value = productId;
+      loadProductIntoSale();
+    }
+
+    function generateProductsReport() {
+      if (!data.products.length) {
+        alert("Não há produtos cadastrados no catálogo para gerar o relatório.");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      // Cabeçalho do Relatório
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(23, 27, 46);
+      doc.text("Arca Estúdio 3D", 14, 20);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(102, 112, 133);
+      doc.text("Relatório Geral de Produtos Cadastrados", 14, 27);
+      doc.text(`Data de Emissão: ${new Date().toLocaleDateString("pt-BR")}`, 14, 33);
+
+      doc.setLineWidth(0.5);
+      doc.setStrokeColor(229, 233, 240);
+      doc.line(14, 38, 196, 38);
+
+      let startY = 46;
+      let cardWidth = 54;
+      let cardHeight = 68;
+      let marginX = 14;
+      let gapX = 6;
+      let gapY = 10;
+      let colCount = 3;
+
+      data.products.forEach((p, idx) => {
+        let col = idx % colCount;
+        let row = Math.floor(idx / colCount);
+
+        let x = marginX + col * (cardWidth + gapX);
+        let y = startY + row * (cardHeight + gapY);
+
+        if (y + cardHeight > 280) {
+          doc.addPage();
+          startY = 20;
+          row = 0;
+          y = startY;
+        }
+
+        doc.setDrawColor(229, 233, 240);
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, "FD");
+
+        let images = (p.images || []).filter(Boolean);
+        if (images.length > 0) {
+          try {
+            doc.addImage(images[0], 'JPEG', x + 2, y + 2, cardWidth - 4, 32);
+          } catch (e) {
+            doc.setFillColor(240, 242, 246);
+            doc.rect(x + 2, y + 2, cardWidth - 4, 32, "F");
+          }
+        } else {
+          doc.setFillColor(240, 242, 246);
+          doc.rect(x + 2, y + 2, cardWidth - 4, 32, "F");
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(102, 112, 133);
+          doc.text("Sem foto", x + cardWidth / 2, y + 18, { align: "center" });
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(217, 98, 72);
+        doc.text(p.code || 'PROD', x + 4, y + 39);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(23, 32, 51);
+        let nameLines = doc.splitTextToSize(p.name || 'Produto', cardWidth - 8);
+        doc.text(nameLines[0], x + 4, y + 45);
+
+        const mat = data.materials.find(m => m.id === p.materialId);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(102, 112, 133);
+        doc.text(mat ? mat.name.substring(0, 22) : 'Insumo Padrão', x + 4, y + 51);
+
+        const c = calculateCostAndPrice(p.materialId, p.grams, p.hours, p.extras, p.margin);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(184, 74, 50);
+        doc.text(money(c.salePrice), x + 4, y + 61);
+      });
+
+      const pdfBlob = doc.output("blob");
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, "_blank");
+    }
+
+    function enableProductForm() {
+      const nextId = data.products.length + 1;
+      const autoCode = `PROD-${String(nextId).padStart(3, '0')}`;
+
+      document.getElementById("prod-id").value = "";
+      document.getElementById("prod-code").value = autoCode;
+      document.getElementById("prod-name").value = "";
+      document.getElementById("prod-material").value = "";
+      document.getElementById("prod-grams").value = "";
+      document.getElementById("prod-hours").value = "2";
+      document.getElementById("prod-extras").value = "0";
+      document.getElementById("prod-margin").value = "50";
+      resetImgBoxes();
+
+      document.getElementById("prod-code").disabled = false;
+      document.getElementById("prod-name").disabled = false;
+      document.getElementById("prod-material").disabled = false;
+      document.getElementById("prod-grams").disabled = false;
+      document.getElementById("prod-hours").disabled = false;
+      document.getElementById("prod-extras").disabled = false;
+      document.getElementById("prod-margin").disabled = false;
+      document.getElementById("btn-save-prod").disabled = false;
+      document.getElementById("btn-cancel-prod").disabled = false;
+      document.getElementById("btn-save-prod").textContent = "Salvar Produto";
+
+      for (let i = 0; i < 4; i++) {
+        document.getElementById(`img-box-${i}`).classList.remove('disabled');
+      }
+
+      document.getElementById("prod-name").focus();
+    }
+
+    document.getElementById("product-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const id = f.get("id");
+      const prodData = {
+        id: id || crypto.randomUUID(),
+        code: f.get("code").trim(),
+        name: f.get("name").trim(),
+        materialId: f.get("materialId"),
+        grams: num(f.get("grams")),
+        hours: num(f.get("hours")),
+        extras: num(f.get("extras")),
+        margin: num(f.get("margin")),
+        images: [...tempImages]
+      };
+
+      if (id) {
+        const idx = data.products.findIndex(p => p.id === id);
+        if (idx !== -1) data.products[idx] = prodData;
+      } else {
+        data.products.push(prodData);
+      }
+      resetProductForm();
+      persist();
+    });
+
+    function editProduct(id) {
+      const p = data.products.find(item => item.id === id);
+      if (!p) return;
+      
+      enableProductForm();
+
+      document.getElementById("prod-id").value = p.id;
+      document.getElementById("prod-code").value = p.code || "";
+      document.getElementById("prod-name").value = p.name;
+      document.getElementById("prod-material").value = p.materialId;
+      document.getElementById("prod-grams").value = p.grams;
+      document.getElementById("prod-hours").value = p.hours;
+      document.getElementById("prod-extras").value = p.extras;
+      document.getElementById("prod-margin").value = p.margin;
+      tempImages = p.images ? [...p.images] : ["", "", "", ""];
+      for (let i = 0; i < 4; i++) updateImgBoxUI(i);
+      
+      document.getElementById("btn-save-prod").textContent = "Atualizar Produto";
+    }
+
+    function resetProductForm() {
+      document.getElementById("product-form").reset();
+      document.getElementById("prod-id").value = "";
+      document.getElementById("prod-code").value = "";
+      document.getElementById("prod-code").placeholder = "Clique em 'Novo Produto'";
+      resetImgBoxes();
+
+      document.getElementById("prod-code").disabled = true;
+      document.getElementById("prod-name").disabled = true;
+      document.getElementById("prod-material").disabled = true;
+      document.getElementById("prod-grams").disabled = true;
+      document.getElementById("prod-hours").disabled = true;
+      document.getElementById("prod-extras").disabled = true;
+      document.getElementById("prod-margin").disabled = true;
+      document.getElementById("btn-save-prod").disabled = true;
+      document.getElementById("btn-cancel-prod").disabled = true;
+      document.getElementById("btn-save-prod").textContent = "Salvar Produto";
+
+      for (let i = 0; i < 4; i++) {
+        document.getElementById(`img-box-${i}`).classList.add('disabled');
+      }
+    }
+
+    function deleteProduct(id) {
+      if (confirm("Excluir este produto do catálogo?")) {
+        data.products = data.products.filter(p => p.id !== id);
+        persist();
+      }
+    }
+
+    /* CALCULADORA (COM CADASTRO E SEM CADASTRO) */
+    function switchCalcTab(type) {
+      const btnContainer = document.querySelector("#calculadora .sub-nav");
+      const buttons = btnContainer.querySelectorAll("button");
+      buttons.forEach(b => b.classList.remove("active"));
+
+      document.getElementById("calc-com-cadastro").classList.remove("active");
+      document.getElementById("calc-sem-cadastro").classList.remove("active");
+
+      if (type === 'com-cadastro') {
+        buttons[0].classList.add("active");
+        document.getElementById("calc-com-cadastro").classList.add("active");
+      } else {
+        buttons[1].classList.add("active");
+        document.getElementById("calc-sem-cadastro").classList.add("active");
+      }
+
+      document.getElementById("calc-result").classList.remove("show");
+    }
+
+    document.getElementById("calc-form-registered").addEventListener("submit", e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const matId = f.get("materialId");
+      const grams = num(f.get("grams"));
+      const hours = num(f.get("hours"));
+      const extras = num(f.get("extras"));
+      const margin = num(f.get("margin"));
+      const jobName = f.get("jobName").trim() || "Trabalho Cadastrado";
+
+      const c = calculateCostAndPrice(matId, grams, hours, extras, margin);
+      showCalcResult(jobName, c, margin);
+    });
+
+    document.getElementById("calc-form-unregistered").addEventListener("submit", e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const jobName = f.get("jobName").trim() || "Trabalho Avulso";
+      const spoolPrice = num(f.get("spoolPrice"));
+      const spoolWeight = num(f.get("spoolWeight")) || 1000;
+      const grams = num(f.get("grams"));
+      const hours = num(f.get("hours"));
+      const extras = num(f.get("extras"));
+      const margin = num(f.get("margin"));
+
+      const matPrice = (spoolPrice / spoolWeight) * grams;
+      const energyCost = (num(data.settings.watts) / 1000) * hours * num(data.settings.tariff);
+      const machineCost = hours * num(data.settings.machineRate);
+      const totalCost = matPrice + energyCost + machineCost + extras;
+      
+      const mPerc = num(margin) / 100;
+      const salePrice = mPerc < 1 ? totalCost / (1 - mPerc) : totalCost * 2;
+
+      const c = { matPrice, energyCost, machineCost, totalCost, salePrice, extras };
+      showCalcResult(jobName, c, margin);
+    });
+
+    function showCalcResult(jobName, c, margin) {
+      const res = document.getElementById("calc-result");
+      res.classList.add("show");
+      res.innerHTML = `
+        <h3>Preço Sugerido: ${escapeHtml(jobName)}</h3>
+        <div class="price">${money(c.salePrice)}</div>
+        <p class="muted">Fórmula aplicada: <b>Preço de Venda = Custo Total [${money(c.totalCost)}] / (1 - ${margin}%)</b></p>
+        <div class="breakdown">
+          <span>Custo do Insumo</span><strong>${money(c.matPrice)}</strong>
+          <span>Custo de Energia</span><strong>${money(c.energyCost)}</strong>
+          <span>Depreciação / Hora-Máquina</span><strong>${money(c.machineCost)}</strong>
+          <span>Custos Extras</span><strong>${money(c.extras || 0)}</strong>
+          <span><b>Custo Total da Peça</b></span><strong><b>${money(c.totalCost)}</b></strong>
+        </div>
+      `;
+    }
+
+    function loadProductIntoCalc() {
+      const pid = document.getElementById("calc-product-select").value;
+      const p = data.products.find(i => i.id === pid);
+      if (!p) return;
+      document.getElementById("calc-jobName").value = p.name;
+      document.getElementById("calc-material").value = p.materialId;
+      document.getElementById("calc-grams").value = p.grams;
+      document.getElementById("calc-hours").value = p.hours;
+      document.getElementById("calc-extras").value = p.extras;
+      document.getElementById("calc-margin").value = p.margin;
+    }
+
+    /* VENDAS */
+    function enableSaleForm() {
+      const sales = data.records.filter(r => r.type === "Venda");
+      const nextId = sales.length + 1;
+      const autoCode = `VEN-${String(nextId).padStart(3, '0')}`;
+
+      document.getElementById("sale-code").value = autoCode;
+      document.getElementById("sale-customer").value = "";
+      document.getElementById("sale-product-select").value = "";
+      document.getElementById("sale-name").value = "";
+      document.getElementById("sale-material").value = "";
+      document.getElementById("sale-grams").value = "";
+      document.getElementById("sale-hours").value = "1";
+      document.getElementById("sale-extras").value = "0";
+      document.getElementById("sale-margin").value = "50";
+
+      document.getElementById("sale-code").disabled = false;
+      document.getElementById("sale-customer").disabled = false;
+      document.getElementById("sale-product-select").disabled = false;
+      document.getElementById("sale-name").disabled = false;
+      document.getElementById("sale-material").disabled = false;
+      document.getElementById("sale-grams").disabled = false;
+      document.getElementById("sale-hours").disabled = false;
+      document.getElementById("sale-extras").disabled = false;
+      document.getElementById("sale-margin").disabled = false;
+      document.getElementById("btn-save-sale").disabled = false;
+      document.getElementById("btn-cancel-sale").disabled = false;
+
+      document.getElementById("sale-name").focus();
+    }
+
+    function cancelSaleForm() {
+      document.getElementById("sale-form").reset();
+      document.getElementById("sale-code").value = "";
+      document.getElementById("sale-code").placeholder = "Clique em 'Nova Venda'";
+
+      document.getElementById("sale-code").disabled = true;
+      document.getElementById("sale-customer").disabled = true;
+      document.getElementById("sale-product-select").disabled = true;
+      document.getElementById("sale-name").disabled = true;
+      document.getElementById("sale-material").disabled = true;
+      document.getElementById("sale-grams").disabled = true;
+      document.getElementById("sale-hours").disabled = true;
+      document.getElementById("sale-extras").disabled = true;
+      document.getElementById("sale-margin").disabled = true;
+      document.getElementById("btn-save-sale").disabled = true;
+      document.getElementById("btn-cancel-sale").disabled = true;
+    }
+
+    function loadProductIntoSale() {
+      const pid = document.getElementById("sale-product-select").value;
+      const p = data.products.find(i => i.id === pid);
+      if (!p) return;
+      document.getElementById("sale-name").value = p.name;
+      document.getElementById("sale-material").value = p.materialId;
+      document.getElementById("sale-grams").value = p.grams;
+      document.getElementById("sale-hours").value = p.hours;
+      document.getElementById("sale-extras").value = p.extras;
+      document.getElementById("sale-margin").value = p.margin;
+    }
+
+    document.getElementById("sale-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const code = f.get("code").trim();
+      const matId = f.get("materialId");
+      const grams = num(f.get("grams"));
+      const hours = num(f.get("hours"));
+      const extras = num(f.get("extras"));
+      const margin = num(f.get("margin"));
+      const customerId = f.get("customerId");
+      const name = f.get("name").trim();
+
+      const mat = data.materials.find(m => m.id === matId);
+      if (!mat) {
+        alert("Insumo não encontrado!");
+        return;
+      }
+
+      if (num(mat.stock) < grams) {
+        if (!confirm(`Atenção: O estoque atual do insumo [${mat.code}] ${mat.name} (${num(mat.stock).toFixed(1)}g) é menor que a quantidade da venda (${grams}g). Deseja continuar mesmo assim?`)) {
+          return;
+        }
+      }
+
+      const c = calculateCostAndPrice(matId, grams, hours, extras, margin);
+
+      mat.stock = Math.max(0, num(mat.stock) - grams);
+
+      data.records.push({
+        id: crypto.randomUUID(),
+        code: code,
+        date: new Date().toLocaleDateString("pt-BR"),
+        rawDate: new Date().toISOString(),
+        type: "Venda",
+        name: name,
+        customerId: customerId,
+        materialName: `[${mat.code}] ${mat.name}`,
+        grams: grams,
+        totalCost: c.totalCost,
+        salePrice: c.salePrice
+      });
+
+      if (customerId) {
+        const cust = data.customers.find(c => c.id === customerId);
+        if (cust) cust.orders = (cust.orders || 0) + 1;
+      }
+
+      cancelSaleForm();
+      persist();
+      showView("historico");
+      alert("Venda registrada com sucesso e estoque subtraído do rolo informado!");
+    });
+
+    /* CLIENTES (CPF / CNPJ) */
+    function openCustomerTypeModal() {
+      document.getElementById("modal-cust-type").classList.add("active");
+    }
+
+    function closeCustomerTypeModal() {
+      document.getElementById("modal-cust-type").classList.remove("active");
+    }
+
+    function selectCustomerType(type) {
+      closeCustomerTypeModal();
+      enableCustomerForm(type);
+    }
+
+    function enableCustomerForm(type) {
+      const nextId = data.customers.length + 1;
+      const autoCode = `CLI-${String(nextId).padStart(3, '0')}`;
+
+      document.getElementById("cust-type").value = type;
+      document.getElementById("cust-code").value = autoCode;
+      document.getElementById("cust-code").disabled = false;
+
+      document.getElementById("fields-cpf").style.display = "none";
+      document.getElementById("fields-cnpj").style.display = "none";
+
+      const inputsCpf = document.querySelectorAll("#fields-cpf input");
+      inputsCpf.forEach(i => { i.disabled = true; i.value = ""; i.required = false; });
+
+      const inputsCnpj = document.querySelectorAll("#fields-cnpj input");
+      inputsCnpj.forEach(i => { i.disabled = true; i.value = ""; i.required = false; });
+
+      if (type === 'CPF') {
+        document.getElementById("fields-cpf").style.display = "grid";
+        inputsCpf.forEach(i => i.disabled = false);
+        document.getElementById("cust-name").required = true;
+        document.getElementById("cust-name").focus();
+      } else if (type === 'CNPJ') {
+        document.getElementById("fields-cnpj").style.display = "grid";
+        inputsCnpj.forEach(i => i.disabled = false);
+        document.getElementById("cust-companyName").required = true;
+        document.getElementById("cust-companyName").focus();
+      }
+
+      document.getElementById("btn-save-cust").disabled = false;
+      document.getElementById("btn-cancel-cust").disabled = false;
+    }
+
+    function cancelCustomerForm() {
+      document.getElementById("customer-form").reset();
+      document.getElementById("cust-code").value = "";
+      document.getElementById("cust-code").placeholder = "Clique em 'Novo Cliente'";
+      document.getElementById("cust-code").disabled = true;
+
+      document.getElementById("fields-cpf").style.display = "none";
+      document.getElementById("fields-cnpj").style.display = "none";
+
+      const allInputs = document.querySelectorAll("#customer-form input");
+      allInputs.forEach(i => { i.disabled = true; i.required = false; });
+
+      document.getElementById("btn-save-cust").disabled = true;
+      document.getElementById("btn-cancel-cust").disabled = true;
+    }
+
+    document.getElementById("customer-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const type = f.get("type");
+
+      let name = "";
+      let phone = "";
+      let cpfVal = "";
+      let cnpjVal = "";
+      let fullAddress = "";
+
+      if (type === "CPF") {
+        name = f.get("name").trim();
+        cpfVal = f.get("cpf").trim();
+        phone = f.get("phoneCpf").trim();
+
+        if (cpfVal && !validateCPF(cpfVal)) {
+          alert("CPF inválido! Por favor, verifique o número digitado.");
+          document.getElementById("cust-cpf").focus();
+          return;
+        }
+
+        const street = f.get("streetCpf").trim();
+        const num = f.get("numberCpf").trim();
+        const comp = f.get("complementCpf").trim();
+        const neigh = f.get("neighborhoodCpf").trim();
+        const city = f.get("cityCpf").trim();
+        const state = f.get("stateCpf").trim().toUpperCase();
+        const cep = f.get("cepCpf").trim();
+
+        const parts = [];
+        if (street) parts.push(street + (num ? `, ${num}` : ''));
+        if (comp) parts.push(comp);
+        if (neigh) parts.push(neigh);
+        if (city) parts.push(city + (state ? ` - ${state}` : ''));
+        if (cep) parts.push(`CEP: ${cep}`);
+        fullAddress = parts.join(" - ");
+
+      } else {
+        name = f.get("companyName").trim();
+        if (f.get("tradeName").trim()) {
+          name += ` (${f.get("tradeName").trim()})`;
+        }
+        cnpjVal = f.get("cnpj").trim();
+        phone = f.get("phoneCnpj").trim();
+
+        if (cnpjVal && !validateCNPJ(cnpjVal)) {
+          alert("CNPJ inválido! Por favor, verifique o número digitado.");
+          document.getElementById("cust-cnpj").focus();
+          return;
+        }
+
+        const street = f.get("streetCnpj").trim();
+        const num = f.get("numberCnpj").trim();
+        const comp = f.get("complementCnpj").trim();
+        const neigh = f.get("neighborhoodCnpj").trim();
+        const city = f.get("cityCnpj").trim();
+        const state = f.get("stateCnpj").trim().toUpperCase();
+        const cep = f.get("cepCnpj").trim();
+
+        const parts = [];
+        if (street) parts.push(street + (num ? `, ${num}` : ''));
+        if (comp) parts.push(comp);
+        if (neigh) parts.push(neigh);
+        if (city) parts.push(city + (state ? ` - ${state}` : ''));
+        if (cep) parts.push(`CEP: ${cep}`);
+        fullAddress = parts.join(" - ");
+      }
+
+      data.customers.push({
+        id: crypto.randomUUID(),
+        type: type,
+        code: f.get("code").trim(),
+        name: name,
+        companyName: f.get("companyName") ? f.get("companyName").trim() : "",
+        tradeName: f.get("tradeName") ? f.get("tradeName").trim() : "",
+        cpf: cpfVal,
+        cnpj: cnpjVal,
+        ie: f.get("ie") ? f.get("ie").trim() : "",
+        contactName: f.get("contactName") ? f.get("contactName").trim() : "",
+        phone: phone,
+        address: fullAddress,
+        orders: 0
+      });
+
+      cancelCustomerForm();
+      persist();
+    });
+
+    function renderCustomers() {
+      const tbody = document.getElementById("customers-table");
+      document.getElementById("customers-empty").style.display = data.customers.length ? "none" : "block";
+      tbody.innerHTML = data.customers.map(c => {
+        const documentVal = c.type === 'CNPJ' ? (c.cnpj || '-') : (c.cpf || '-');
+        const nameVal = escapeHtml(c.name || c.companyName || '-');
+        const contactVal = c.type === 'CNPJ' ? `${escapeHtml(c.contactName || '-')} / ${escapeHtml(c.phone || '-')}` : escapeHtml(c.phone || '-');
+
+        return `<tr>
+          <td><span class="badge" style="background:#fbeee8; color:var(--primary-dark);">${escapeHtml(c.code || '-')}</span></td>
+          <td><span class="badge type">${escapeHtml(c.type || 'CPF')}</span></td>
+          <td><b>${nameVal}</b></td>
+          <td>${escapeHtml(documentVal)}</td>
+          <td>${contactVal}</td>
+          <td>${escapeHtml(c.address || '-')}</td>
+          <td>${num(c.orders)}</td>
+          <td><button class="danger" onclick="deleteCustomer('${c.id}')">Excluir</button></td>
+        </tr>`;
+      }).join("");
+    }
+
+    function deleteCustomer(id) {
+      if (confirm("Deseja excluir este cliente?")) {
+        data.customers = data.customers.filter(c => c.id !== id);
+        persist();
+      }
+    }
+
+    /* SELECTS DINÂMICOS */
+    function renderSelects() {
+      const matOpts = `<option value="">Selecione o insumo pelo código...</option>` + data.materials.map(m => `<option value="${m.id}">Código: [${escapeHtml(m.code)}] - ${escapeHtml(m.name)} (${num(m.stock).toFixed(0)}g disp.)</option>`).join("");
+      document.getElementById("prod-material").innerHTML = matOpts;
+      document.getElementById("calc-material").innerHTML = matOpts;
+      document.getElementById("sale-material").innerHTML = matOpts;
+
+      const prodOpts = `<option value="">Selecione um produto...</option>` + data.products.map(p => `<option value="${p.id}">${escapeHtml(p.code ? '[' + p.code + '] ' : '')}${escapeHtml(p.name)}</option>`).join("");
+      document.getElementById("calc-product-select").innerHTML = prodOpts;
+      document.getElementById("sale-product-select").innerHTML = prodOpts;
+
+      const custOpts = `<option value="">Cliente Não Identificado / Balcão</option>` + data.customers.map(c => `<option value="${c.id}">${escapeHtml(c.code ? '[' + c.code + '] ' : '')}${escapeHtml(c.name)}</option>`).join("");
+      document.getElementById("sale-customer").innerHTML = custOpts;
+    }
+
+    /* HISTÓRICO */
+    function renderHistory() {
+      const tbody = document.getElementById("history-table");
+      document.getElementById("history-empty").style.display = data.records.length ? "none" : "block";
+      tbody.innerHTML = [...data.records].reverse().map(r => {
+        const cust = data.customers.find(c => c.id === r.customerId);
+        return `<tr>
+          <td><span class="badge" style="background:#fbeee8; color:var(--primary-dark);">${escapeHtml(r.code || '-')}</span></td>
+          <td>${escapeHtml(r.date)}</td>
+          <td><span class="badge ${r.type === 'Venda' ? 'ok' : 'low'}">${escapeHtml(r.type)}</span></td>
+          <td><b>${escapeHtml(r.name)}</b></td>
+          <td>${cust ? escapeHtml(cust.name) : 'Balcão'}</td>
+          <td>${escapeHtml(r.materialName || '-')}</td>
+          <td>${r.grams} g</td>
+          <td>${money(r.totalCost)}</td>
+          <td><b style="color:var(--primary-dark);">${money(r.salePrice)}</b></td>
+        </tr>`;
+      }).join("");
+    }
+
+    /* CONFIGURAÇÕES */
+    function renderSettings() {
+      const f = document.getElementById("settings-form");
+      f.elements["watts"].value = data.settings.watts;
+      f.elements["tariff"].value = data.settings.tariff;
+      f.elements["machineRate"].value = data.settings.machineRate;
+    }
+
+    document.getElementById("settings-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      data.settings = {
+        watts: num(f.get("watts")),
+        tariff: num(f.get("tariff")),
+        machineRate: num(f.get("machineRate"))
+      };
+      persist();
+      alert("Configurações salvas com sucesso!");
+    });
+
+    /* MODAL DE IMAGEM */
+    function openImgModal(src) {
+      document.getElementById("modal-img-src").src = src;
+      document.getElementById("img-modal").classList.add("active");
+    }
+    function closeImgModal() {
+      document.getElementById("img-modal").classList.remove("active");
+    }
+
+    /* GRÁFICOS OTIMIZADOS DA ABA RELATÓRIOS */
+    let costChartInstance = null;
+    let stockChartInstance = null;
+    let timelineChartInstance = null;
+
+    function renderCharts() {
+      if (typeof Chart === 'undefined') return;
+
+      const period = document.getElementById("report-period")?.value || "all";
+      const now = new Date();
+
+      let sales = data.records.filter(r => r.type === "Venda");
+
+      if (period === "this_month") {
+        sales = sales.filter(r => {
+          const d = r.rawDate ? new Date(r.rawDate) : new Date();
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+      } else if (period === "last_month") {
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        sales = sales.filter(r => {
+          const d = r.rawDate ? new Date(r.rawDate) : new Date();
+          return d.getMonth() === lastMonth.getMonth() && d.getFullYear() === lastMonth.getFullYear();
+        });
+      } else if (period === "7days") {
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        sales = sales.filter(r => {
+          const d = r.rawDate ? new Date(r.rawDate) : new Date();
+          return d >= sevenDaysAgo;
+        });
+      }
+
+      const totalRevenue = sales.reduce((acc, s) => acc + num(s.salePrice), 0);
+      const totalCost = sales.reduce((acc, s) => acc + num(s.totalCost), 0);
+      const totalProfit = Math.max(0, totalRevenue - totalCost);
+      const totalFilament = sales.reduce((acc, s) => acc + num(s.grams), 0);
+
+      document.getElementById("rep-revenue").textContent = money(totalRevenue);
+      document.getElementById("rep-profit").textContent = money(totalProfit);
+      document.getElementById("rep-items").textContent = sales.length;
+      document.getElementById("rep-filament").textContent = `${totalFilament.toFixed(1)} g`;
+
+      const ctxTimeline = document.getElementById("chart-timeline").getContext("2d");
+      if (timelineChartInstance) timelineChartInstance.destroy();
+
+      const timelineData = {};
+      sales.forEach(s => {
+        const dStr = s.date || "Hoje";
+        timelineData[dStr] = (timelineData[dStr] || 0) + num(s.salePrice);
+      });
+
+      const labelsTime = Object.keys(timelineData);
+      const valuesTime = Object.values(timelineData);
+
+      timelineChartInstance = new Chart(ctxTimeline, {
+        type: 'line',
+        data: {
+          labels: labelsTime.length ? labelsTime : ['Sem dados'],
+          datasets: [{
+            label: 'Faturamento (R$)',
+            data: valuesTime.length ? valuesTime : [0],
+            borderColor: '#d96248',
+            backgroundColor: 'rgba(217, 98, 72, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      const ctxCosts = document.getElementById("chart-costs").getContext("2d");
+      if (costChartInstance) costChartInstance.destroy();
+      
+      const totalMatCost = sales.reduce((acc, s) => acc + (num(s.totalCost) * 0.45), 0);
+      const totalEnergyCost = sales.reduce((acc, s) => acc + (num(s.totalCost) * 0.15), 0);
+      const totalMachineCost = sales.reduce((acc, s) => acc + (num(s.totalCost) * 0.30), 0);
+      const totalExtrasCost = sales.reduce((acc, s) => acc + (num(s.totalCost) * 0.10), 0);
+
+      costChartInstance = new Chart(ctxCosts, {
+        type: 'doughnut',
+        data: {
+          labels: ['Insumo', 'Energia', 'Hora-Máquina', 'Extras'],
+          datasets: [{
+            data: [totalMatCost || 1, totalEnergyCost || 1, totalMachineCost || 1, totalExtrasCost || 1],
+            backgroundColor: ['#d96248', '#16825d', '#946200', '#c03939']
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      const ctxStock = document.getElementById("chart-stock").getContext("2d");
+      if (stockChartInstance) stockChartInstance.destroy();
+
+      stockChartInstance = new Chart(ctxStock, {
+        type: 'bar',
+        data: {
+          labels: data.materials.map(m => `[${m.code}] ${m.name}`),
+          datasets: [{
+            label: 'Estoque Atual (g)',
+            data: data.materials.map(m => m.stock),
+            backgroundColor: '#d96248'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
